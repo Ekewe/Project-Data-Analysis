@@ -8,6 +8,7 @@ import pandas as pd
 import unicodedata
 from gensim.models import LdaModel
 from gensim.models import LsiModel
+from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from gensim.corpora.dictionary import Dictionary
 import numpy as np
@@ -16,7 +17,7 @@ from gensim.models.coherencemodel import CoherenceModel
 
 
 class TopicModeling:
-    def __init__(self, file_path):
+    def __init__(self, file_path, data=None, complaints=None, cleaned_complaints=None):
         """
         Initializes the TopicModeling class with the file path, NLP model, and vectorizers.
 
@@ -32,9 +33,9 @@ class TopicModeling:
             topic_models (dict): Dictionary containing topic modeling methods (LDA and LSA).
         """
         self.file_path = file_path
-        self.data = None
-        self.complaints = None
-        self.cleaned_complaints = None
+        self.data = data
+        self.complaints = complaints
+        self.cleaned_complaints = cleaned_complaints
         self.lemmatizer = WordNetLemmatizer()
         self.vectorizers = {
             'BoW': self.bow_vectorizer,
@@ -44,11 +45,11 @@ class TopicModeling:
             'LDA': self.lda_model,
             'LSA': self.lsa_model
         }
-        nltk.download('punkt')
-        nltk.download('wordnet')
-        nltk.download('omw-1.4')
 
-
+        # Download once
+        #nltk.download('punkt')
+        #nltk.download('wordnet')
+        #nltk.download('omw-1.4')
 
     def load_data(self):
         """
@@ -107,7 +108,8 @@ class TopicModeling:
         self.cleaned_complaints = self.complaints
         return self.cleaned_complaints
 
-    def bow_vectorizer(self, data):
+    @staticmethod
+    def bow_vectorizer(data):
         """
         Vectorizes data using the Bag of Words (BoW) model.
 
@@ -117,10 +119,11 @@ class TopicModeling:
         Returns:
             Tuple (matrix, CountVectorizer): The BoW vectorized matrix and the vectorizer used.
         """
-        vectorizer = CountVectorizer(max_features=400)
+        vectorizer = CountVectorizer(max_features=500)
         return  vectorizer.fit_transform(data), vectorizer
 
-    def tfidf_vectorizer(self, data):
+    @staticmethod
+    def tfidf_vectorizer(data):
         """
         Vectorizes data using the TF-IDF (Term Frequency-Inverse Document Frequency) model.
 
@@ -130,10 +133,11 @@ class TopicModeling:
         Returns:
             Tuple (matrix, TfidfVectorizer): The TF-IDF vectorized matrix and the vectorizer used.
         """
-        vectorizer = TfidfVectorizer(max_features=400)
+        vectorizer = TfidfVectorizer(max_features=500)
         return vectorizer.fit_transform(data), vectorizer
 
-    def lda_model(self, corpus, dictionary, num_topics=50):
+    @staticmethod
+    def lda_model(corpus, dictionary, num_topics=50):
         """
         Performs Latent Dirichlet Allocation (LDA) topic modeling on pre-vectorized data.
 
@@ -147,7 +151,8 @@ class TopicModeling:
         """
         return LdaModel(corpus, id2word=dictionary, num_topics=num_topics, passes=5)
 
-    def lsa_model(self, corpus, dictionary, num_topics=50):
+    @staticmethod
+    def lsa_model(corpus, dictionary, num_topics=50):
         """
         Performs Latent Semantic Analysis (LSA) topic modeling on pre-vectorized data.
 
@@ -161,20 +166,21 @@ class TopicModeling:
         """
         return LsiModel(corpus, id2word=dictionary, num_topics=num_topics)
 
-    def compute_coherence(self, model, data, vectorizer, coherence='c_v'):
+    @staticmethod
+    def compute_coherence(model, texts, dictionary, coherence='c_v'):
         """
         Computes the coherence score for a given topic model.
 
         Args:
             model (Model): The topic model to evaluate.
-            data (list): The tokenized text data.
-            vectorizer (Dictionary): The Gensim dictionary used for creating the corpus.
+            texts (list): The tokenized text data.
+            dictionary (Dictionary): The Gensim dictionary used for creating the corpus.
             coherence (str): The type of coherence to calculate (default is 'c_v').
 
         Returns:
             float: The coherence score.
         """
-        coherence_model = CoherenceModel(model=model, texts=data, dictionary=vectorizer, coherence=coherence)
+        coherence_model = CoherenceModel(model=model, texts=texts, dictionary=dictionary, coherence=coherence)
         return coherence_model.get_coherence()
 
     def find_optimal_topics(self, max_topics=50, coherence='c_v'):
@@ -197,29 +203,41 @@ class TopicModeling:
 
         for vec_name, vec_func in self.vectorizers.items():
             vectors, vectorizers = vec_func(cleaned_text)
-            tokenized_texts = [doc.split() for doc in cleaned_text]
-            dictionary = Dictionary(tokenized_texts)
-            corpus = [dictionary.doc2bow(tokens) for tokens in tokenized_texts]
+
+            # Here we need to convert the vectors to a gensim structure
+            id2word = {index: word for word, index in vectorizers.vocabulary_.items()}
+            corpus = [[(word_id, count) for word_id, count in zip(doc.indices, doc.data)] for doc in csr_matrix(vectors)]
+            tokenized_corpus = [[word for word in ({word: i for i, word in id2word.items()}).keys()]]
+            gensim_dict = Dictionary(tokenized_corpus)
 
             for model_name, model_func in self.topic_models.items():
+                # Results are stored into lists
                 coherence_scores = []
-
-                for num_topics in range(1, max_topics + 1, 3):
-                    model = model_func(corpus, dictionary, num_topics)
-                    score = self.compute_coherence(model, tokenized_texts, dictionary, coherence)
+                models = []
+                for num_topics in range(1, max_topics + 1, 1):
+                    model = model_func(corpus, id2word, num_topics)
+                    score = self.compute_coherence(model=model, texts=tokenized_corpus, dictionary=gensim_dict, coherence=coherence)
                     coherence_scores.append(score)
+                    models.append(model)
 
+                # Creation of variables to be called in Main
                 optimal_score = max(coherence_scores)
                 optimal_topics = coherence_scores.index(optimal_score) + 1
+                optimal_model = models[coherence_scores.index(optimal_score)]
+                optimal_model_topics = optimal_model.print_topics(num_topics=optimal_topics)
+
+                # Append the results of the analysis to the lists
                 results.append({
                     "combo": f"{vec_name}/{model_name}",
                     "Optimal Topics": optimal_topics,
-                    "Optimal Scores": optimal_score
+                    "Optimal Scores": optimal_score,
+                    "Topics": optimal_model_topics
                 })
 
         return results
 
-    def visualize_scores(self, results):
+    @staticmethod
+    def visualize_scores(results):
         """
         Visualizes the optimal coherence scores for each vectorization/model combination using a bar chart.
 
