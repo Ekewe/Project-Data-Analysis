@@ -149,7 +149,7 @@ class TopicModeling:
         Returns:
             LdaModel: The trained LDA model.
         """
-        return LdaModel(corpus, id2word=dictionary, num_topics=num_topics, passes=5)
+        return LdaModel(corpus, id2word=dictionary, num_topics=num_topics, passes=2)
 
     @staticmethod
     def lsa_model(corpus, dictionary, num_topics=50):
@@ -215,7 +215,7 @@ class TopicModeling:
                 coherence_scores = []
                 models = []
                 for num_topics in range(1, max_topics + 1, 1):
-                    model = model_func(corpus, id2word, num_topics)
+                    model = model_func(corpus, gensim_dict, num_topics)
                     score = self.compute_coherence(model=model, texts=tokenized_corpus, dictionary=gensim_dict, coherence=coherence)
                     coherence_scores.append(score)
                     models.append(model)
