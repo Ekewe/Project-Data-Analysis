@@ -1,6 +1,13 @@
+"""
+File: text_analyzer.py
+Description: Helper functions for data preprocessing and analysis.
+Author: Emmanuel Kewe
+Date: 21-11-2024
+Version: 1.0
+"""
+
 import json
 import re
-import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
