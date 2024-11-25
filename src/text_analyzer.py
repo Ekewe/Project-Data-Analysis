@@ -21,6 +21,7 @@ from gensim.corpora.dictionary import Dictionary
 import numpy as np
 import matplotlib.pyplot as plt
 from gensim.models.coherencemodel import CoherenceModel
+from wordcloud import WordCloud
 
 
 class TopicModeling:
@@ -267,4 +268,149 @@ class TopicModeling:
         plt.grid(axis='x', linestyle='--', alpha=0.5)
 
         # Display the graph
+        plt.show()
+
+    @staticmethod
+    def results_to_text(results):
+        """
+        Formats and prints the results of the topic modeling analysis.
+
+        Args:
+            results (list): List containing the results from the topic modeling analysis.
+
+        Returns:
+            str: Formatted string of the results if needed.
+        """
+        # Initialize an empty string to collect the formatted results
+        formatted_results = []
+
+        # Extract number of topics from the results (assuming all results have the same number of topics)
+        n_topics = results[0]['Optimal Topics'] if results else 0
+
+        formatted_results.append(f"Number of topics for the analysis: {n_topics}\n")
+
+        # Iterate over the results and format them
+
+        for result in results:
+            formatted_results.append(f"Vectorization/Modeling: {result['combo']}")
+            formatted_results.append(f"Optimal Topic n°: {result['Optimal Topics']}")
+            formatted_results.append(f"Coherence Scores: {result['Optimal Scores']}")
+
+            # Format the topics for display
+            topics = "\n".join([f"Topic {i + 1}: {topic[1]}" for i, topic in enumerate(result['Topics'])])
+            formatted_results.append(f"Topics:\n{topics}")
+
+            formatted_results.append("----------------------------------------\n")
+
+        # Print all the formatted results
+        print("\n".join(formatted_results))
+
+        # Return the formatted string if later needed
+        return "\n".join(formatted_results)
+
+    def vectorizers_to_wordcloud(self, n_top_words=15):
+        """
+        Generates word clouds for each vectorizer in self.vectorizers (BoW and TF-IDF) based on the top N words.
+
+        Args:
+            n_top_words (int): The number of top words to extract from each vectorizer (default is 15).
+        """
+        # Ensure the complaints are cleaned
+        if self.cleaned_complaints is None or self.cleaned_complaints.empty:
+            self.clean_data()
+
+        # Get the cleaned complaint texts
+        data = self.cleaned_complaints['Complaint Text']
+
+        # Loop through each vectorizer in self.vectorizers
+        for vec_name, vec_func in self.vectorizers.items():
+            # Get the vectorized matrix and the vectorizer
+            matrix, vectorizer = vec_func(data)
+
+            # Get the feature names (words)
+            feature_names = vectorizer.get_feature_names_out()
+
+            # Sum the word frequencies/weights across all documents
+            word_frequencies = matrix.sum(axis=0).A1  # Convert the sparse matrix to a dense array
+
+            # Create a dictionary of word frequencies or weights
+            word_freq_dict = {word: word_frequencies[idx] for idx, word in enumerate(feature_names)}
+
+            # Sort the dictionary by frequency/weight and keep the top N words
+            sorted_word_freq_dict = dict(
+                sorted(word_freq_dict.items(), key=lambda item: item[1], reverse=True)[:n_top_words])
+
+            # Generate and visualize the word cloud
+            self.wordcloud_visualization(sorted_word_freq_dict, source='vectorizers')
+
+    @staticmethod
+    def to_wordcloud_dict(results):
+        """
+        Transforms the 'Topics' dictionary from the `find_optimal_topics` output into a dictionary
+        suitable for generating a word cloud, where the input is in the form:
+
+            results = {
+                "Topics": [(index, 'weight*"word" + weight2*"word2" + ...')]
+            }
+
+        Args:
+            results (list): List of dictionaries containing the optimal topics for each model.
+
+        Returns:
+            dict: A dictionary of words and their corresponding weights for each topic.
+        """
+        # Initialize an empty dictionary to store the word frequencies
+        wordcloud_data = {}
+
+        # Iterate through the optimal topics result to extract words and weights
+        for result in results:
+            # Extract the topics
+            topics = result['Topics']
+
+            # Iterate through the topics
+            for topic in topics:
+                # Split the string into word-weight pairs
+                topic_words_weights = topic[1].split(" + ")
+
+                # Process each word-weight pair
+                for word_weight in topic_words_weights:
+                    weight, word = word_weight.split('*')
+                    weight = float(weight)
+                    word = word.strip('"')
+
+                    # Accumulate the word weights in the dictionary
+                    if word in wordcloud_data:
+                        wordcloud_data[word] += weight # Add weight to existing word
+                    else:
+                        wordcloud_data[word] = weight # Initialize word with its weight
+        return wordcloud_data
+
+    @staticmethod
+    def wordcloud_visualization(wordcloud_data, source='topics'):
+        """
+        Generates and visualizes a word cloud from the word frequency dictionary.
+
+        Args:
+            wordcloud_data (dict): A dictionary with words and their frequencies for the word cloud.
+            source (str): A string to determine whether the word cloud is based on 'vectorizers' or 'topics'.
+        """
+        # Create the word cloud
+        wordcloud = WordCloud(
+            width=800,
+            height=400,
+            background_color='white',
+            colormap='Blues',
+            contour_color='black',
+        ).generate_from_frequencies(wordcloud_data)
+
+        # Display the word cloud
+        plt.figure(figsize=(10,6))
+        plt.imshow(wordcloud, interpolation='bilinear')
+        plt.axis('off')
+        if source == 'vectorizers':
+            plt.title('Word Cloud based on Vectorizers')
+        else:
+            plt.title('Word Cloud based on Topics')
+
+        plt.tight_layout()
         plt.show()
