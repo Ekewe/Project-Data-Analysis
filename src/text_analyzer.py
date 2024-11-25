@@ -271,23 +271,21 @@ class TopicModeling:
         plt.show()
 
     @staticmethod
-    def results_to_text(results):
+    def results_to_text(results, n_topics):
         """
         Formats and prints the results of the topic modeling analysis.
 
         Args:
             results (list): List containing the results from the topic modeling analysis.
-
+            n_topics (int): Number of topics that was assigned to the pipeline.
         Returns:
             str: Formatted string of the results if needed.
         """
         # Initialize an empty string to collect the formatted results
         formatted_results = []
 
-        # Extract number of topics from the results (assuming all results have the same number of topics)
-        n_topics = results[0]['Optimal Topics'] if results else 0
-
-        formatted_results.append(f"Number of topics for the analysis: {n_topics}\n")
+        # Print the number of topics that was assigned for the results
+        print(f"Number of topics for the analysis: {n_topics}\n")
 
         # Iterate over the results and format them
 
