@@ -33,9 +33,21 @@ pipeline.clean_data()
 ```python
 pipeline.find_optimal_topics(max_topics=50)
 ```
-4. Visualize the results by passing it to the visualize_scores method:
+4. Visualize the results by passing it to the visualize_scores method in a graph:
 ```python
 pipeline.visualize_scores(results)
+```
+5.1 Visualize the results of the coherence score weights through a wordcloud:
+```python
+pipeline.wordcloud_visualization(pipeline.to_wordcloud_dict(optimal_topics_result))
+```
+5.2 Visualize the top n word of the BoW and TF-IDF vectorizers (n_top_words=15 per default):
+```python
+pipeline.vectorizers_to_wordcloud()
+```
+5.3 Visualize the scores through simple print function:
+```python
+pipeline.results_to_text(optimal_topics_result)
 ```
 
 ## License
