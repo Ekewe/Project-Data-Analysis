@@ -37,7 +37,7 @@ pipeline.find_optimal_topics(max_topics=50)
 ```python
 pipeline.visualize_scores(results)
 ```
-5 Visualize the results of the coherence score weights through a wordcloud:
+5. Visualize the results of the coherence score weights through a wordcloud:
 ```python
 pipeline.wordcloud_visualization(pipeline.to_wordcloud_dict(optimal_topics_result))
 ```
