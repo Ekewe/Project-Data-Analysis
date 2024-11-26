@@ -10,13 +10,13 @@ def main():
     optimal_topics_result = pipeline.find_optimal_topics(max_topics=n_topics)
 
     # Visualize the BoW and TF-IDF top words as a wordcloud
-    #pipeline.vectorizers_to_wordcloud()
+    pipeline.vectorizers_to_wordcloud()
 
     # Visualize the coherence scores
     pipeline.visualize_scores(optimal_topics_result)
 
     # Visualize the words based on the coherence results in a wordcloud
-    #pipeline.wordcloud_visualization(pipeline.to_wordcloud_dict(optimal_topics_result)) # Here, it is first needed to convert the results to a structure the wordcloud function can read
+    pipeline.wordcloud_visualization(pipeline.to_wordcloud_dict(optimal_topics_result)) # Here, it is first needed to convert the results to a structure the wordcloud function can read
 
     # Prints the results in the console
     pipeline.results_to_text(optimal_topics_result, n_topics)
